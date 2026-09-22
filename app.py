@@ -11,10 +11,12 @@ st.set_page_config(page_title="의료장비 통합 조회 시스템", layout="wi
 st.title("🏥 의료장비 관리번호 통합 조회 시스템")
 st.markdown("관리번호를 직접 입력하거나 스마트폰 카메라(바코드/QR)로 스캔하여 최신 장비 상세 내역 및 수리 이력을 조회하세요.")
 
-# 최신 파일 자동 탐색 함수
-def find_latest_file(prefix):
-    pattern = f"{prefix}*.xlsx"
-    files = glob.glob(pattern)
+# 최신 파일 자동 탐색 함수 (정확한 접두사 및 확장자 매칭)
+def find_latest_file(prefix, extensions=(".xlsx", ".xlsb", ".xls")):
+    files = []
+    for ext in extensions:
+        files.extend(glob.glob(f"{prefix}*{ext}"))
+        
     if not files:
         return None
     
@@ -31,14 +33,21 @@ def find_latest_file(prefix):
 # 1. 최신 데이터 파일 로드 (캐싱 활용)
 @st.cache_data
 def load_latest_data():
-    status_file = find_latest_file("의료기기 현황조회_")
-    repair_file = find_latest_file("수리접수 내역_")
+    # 현황조회 파일 및 수리접수 내역 파일 자동 탐색
+    status_file = find_latest_file("의료기기 현황조회")
+    repair_file = find_latest_file("수리접수 내역")
     
     if not status_file or not repair_file:
-        raise FileNotFoundError("필요한 엑셀 파일을 찾을 수 없습니다.")
+        raise FileNotFoundError(f"필요한 데이터 파일을 찾을 수 없습니다. (검색된 현황파일: {status_file}, 수리파일: {repair_file})")
         
     df_status = pd.read_excel(status_file)
-    df_repair = pd.read_excel(repair_file)
+    
+    # 수리접수 내역 파일이 .xlsb 바이너리 형식인 경우 pyxlsb 엔진 지정
+    if repair_file.endswith('.xlsb'):
+        df_repair = pd.read_excel(repair_file, engine='pyxlsb')
+    else:
+        df_repair = pd.read_excel(repair_file)
+        
     return df_status, df_repair, status_file, repair_file
 
 try:
@@ -70,10 +79,10 @@ if st.sidebar.button("🔄 검색 및 부서 초기화", use_container_width=Tru
 st.sidebar.markdown("---")
 
 # 1. 참조 파일 확인 영역
-st.sidebar.markdown("### 📁 현재 참조 중인 최신 파일")
+st.sidebar.markdown("### 📁 현재 참조 중인 파일")
 st.sidebar.info(
     f"**[의료기기 현황]**\n`{latest_status_path}`\n\n"
-    f"**[수리접수 내역]**\n`{latest_repair_path}`"
+    f"**[수리접수 내역 (.xlsb)]**\n`{latest_repair_path}`"
 )
 
 st.sidebar.markdown("---")
@@ -125,7 +134,6 @@ if dept_col in df_status.columns:
     unique_depts = sorted(list(set(raw_depts)), key=lambda x: x.lower())
     dept_list = ['전체보기'] + unique_depts
     
-    # 세션 상태 기반 선택값 인덱스 계산
     current_dept = st.session_state["dept_selection"]
     if current_dept not in dept_list:
         current_dept = '전체보기'
@@ -242,7 +250,7 @@ if query:
                 
                 st.dataframe(matched_repair, use_container_width=True)
 
-        # 버튼 3: 예방점검 현황 (팝업 새 창 박스 + 위험등급 표시 / 닫기 버튼 삭제됨)
+        # 버튼 3: 예방점검 현황
         if btn_prevent:
             st.session_state["active_tab"] = "prevent"
             
@@ -254,7 +262,6 @@ if query:
             dept_name = status_record.get('사용\n부서', status_record.get('사용부서', '-'))
             inspection_cycle = status_record.get('사용부서\n점검주기', status_record.get('사용부서점검주기', '-'))
             
-            # 위험등급 항목 추출
             risk_col = [c for c in status_record.index if '위험' in str(c) or '등급' in str(c)]
             risk_grade = status_record.get(risk_col[0], '-') if risk_col else '-'
             if pd.isna(risk_grade) or str(risk_grade).strip() == '':
