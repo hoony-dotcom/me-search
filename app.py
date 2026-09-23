@@ -10,7 +10,7 @@ import streamlit.components.v1 as components
 st.set_page_config(page_title="인하대병원 의료장비 조회 시스템", layout="wide")
 
 st.title("🏥 인하대병원 의료장비 조회 시스템")
-st.markdown("관리번호를 직접 입력하거나 스마트폰 카메라로 바코드/QR을 스캔하여 상세 내역과 예방점검 라벨 현황을 확인하세요.")
+st.markdown("관리번호를 직접 입력하거나 아래의 카메라 스캔 버튼을 눌러 바코드/QR을 인식하세요.")
 
 # 최신 의료기기 현황조회 파일 자동 탐색 함수
 def find_latest_status_file(prefix="의료기기 현황조회", extensions=(".xlsx", ".xlsb", ".xls")):
@@ -95,14 +95,18 @@ if "last_queried_no" not in st.session_state:
 if "auto_popup_shown" not in st.session_state:
     st.session_state["auto_popup_shown"] = False
 
-# 공통 검색 실행 처리 함수 (개별 검색 시 부서 선택을 강제로 '전체보기'로 바꿈)
+if "show_cam_scanner" not in st.session_state:
+    st.session_state["show_cam_scanner"] = False
+
+# 공통 검색 실행 처리 함수
 def trigger_individual_search(query_val):
     clean_q = query_val.strip().upper()
     st.session_state["search_query"] = clean_q
     if clean_q:
-        st.session_state["dept_selection"] = "전체보기"  # 부서 선택 전체보기로 강제 초기화
+        st.session_state["dept_selection"] = "전체보기"
         st.session_state["dept_selectbox_active"] = "전체보기"
         st.session_state["show_repair"] = False
+        st.session_state["show_cam_scanner"] = False
         if clean_q != st.session_state["last_queried_no"]:
             st.session_state["last_queried_no"] = clean_q
             st.session_state["auto_popup_shown"] = False
@@ -141,48 +145,70 @@ div.stButton > button:first-child {
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 메인 페이지 상단: 검색 및 조회 영역 (2열 동시 배치)
+# 메인 페이지 상단: 검색 및 조회 영역
 # ==========================================
 st.markdown("---")
 col_menu1, col_menu2 = st.columns(2)
 
-# 1열: 관리번호 개별 장비 검색 (스마트폰 카메라/바코드 입력 지원 속성 추가)
+# 1열: 관리번호 개별 장비 검색 + 카메라 스캔 토글 버튼
 with col_menu1:
     st.markdown("#### 🔍 관리번호 개별 장비 검색")
     
     def on_search_input_change():
         trigger_individual_search(st.session_state["search_input_val"])
 
-    sub_col1, sub_col2 = st.columns([7, 3])
+    sub_col1, sub_col2, sub_col3 = st.columns([5, 2.5, 2.5])
     with sub_col1:
         mgm_no_input = st.text_input(
             "관리번호 입력", 
             key="search_input_val", 
-            placeholder="예: 50A1100001 (카메라 스캔 가능)", 
+            placeholder="예: 50A1100001", 
             label_visibility="collapsed",
             on_change=on_search_input_change
         )
-        
-        # 스마트폰 브라우저(iOS Safari, Android Chrome 등)에서 입력창 터치 시 카메라(바코드/QR) 입력 허용하도록 자바스크립트 주입
-        components.html("""
-        <script>
-            const doc = window.parent.document;
-            const inputs = doc.querySelectorAll('input[type="text"]');
-            inputs.forEach(input => {
-                if (input.placeholder && input.placeholder.includes("카메라")) {
-                    input.setAttribute('inputmode', 'text');
-                    input.setAttribute('autocomplete', 'off');
-                }
-            });
-        </script>
-        """, height=0)
-
     with sub_col2:
+        cam_btn_label = "📷 닫기" if st.session_state["show_cam_scanner"] else "📷 스캔"
+        if st.button(cam_btn_label, use_container_width=True, key="cam_toggle_btn"):
+            st.session_state["show_cam_scanner"] = not st.session_state["show_cam_scanner"]
+            st.rerun()
+    with sub_col3:
         search_clicked = st.button("조회", use_container_width=True, key="main_search_btn")
 
     if search_clicked:
         trigger_individual_search(st.session_state["search_input_val"])
         st.rerun()
+
+    # 카메라 스캔 버튼을 눌렀을 때 나타나는 인라인 바코드/QR 스캐너 뷰어
+    if st.session_state["show_cam_scanner"]:
+        st.markdown("👇 **스마트폰 후면 카메라를 바코드나 QR에 비추세요**")
+        scanner_html = """
+        <div style="width: 100%; max-width: 350px; margin: auto; background: #fff; padding: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+            <div id="reader" style="width: 100%;"></div>
+        </div>
+        <script src="https://unpkg.com/html5-qrcode"></script>
+        <script>
+            function onScanSuccess(decodedText, decodedResult) {
+                if (decodedText) {
+                    const cleanText = decodedText.trim().toUpperCase();
+                    const baseUrl = window.top.location.href.split('?')[0];
+                    window.top.location.href = baseUrl + '?mgm=' + encodeURIComponent(cleanText);
+                }
+            }
+            
+            let html5QrcodeScanner = new Html5QrcodeScanner(
+                "reader", 
+                { 
+                    fps: 15, 
+                    qrbox: { width: 220, height: 120 },
+                    aspectRatio: 1.0,
+                    rememberLastUsedCamera: true
+                }, 
+                false
+            );
+            html5QrcodeScanner.render(onScanSuccess, (error) => {});
+        </script>
+        """
+        components.html(scanner_html, height=380)
 
 query = st.session_state["search_query"]
 
