@@ -31,7 +31,7 @@ def find_latest_status_file(prefix="의료기기 현황조회", extensions=(".xl
     files.sort(key=extract_date, reverse=True)
     return files[0]
 
-# 1. 데이터 파일 로드 (현황조회 최신 파일 + 수리접수 내역 모든 파일 통합)
+# 1. 데이터 파일 로드 (현황조회 최신 파일 + 모든 수리접수 내역 파일 통합)
 @st.cache_data
 def load_latest_data():
     status_file = find_latest_status_file("의료기기 현황조회")
@@ -60,6 +60,7 @@ def load_latest_data():
             
     if repair_dfs:
         df_repair = pd.concat(repair_dfs, ignore_index=True)
+        # 중복 데이터 제거
         df_repair = df_repair.drop_duplicates()
     else:
         df_repair = pd.DataFrame()
