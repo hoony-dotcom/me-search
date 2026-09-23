@@ -10,7 +10,7 @@ import streamlit.components.v1 as components
 st.set_page_config(page_title="인하대병원 의료장비 조회 시스템", layout="wide")
 
 st.title("🏥 인하대병원 의료장비 조회 시스템")
-st.markdown("관리번호를 직접 입력하거나 모바일 카메라로 바코드/QR을 스캔하여 상세 내역과 예방점검 라벨 현황을 확인하세요.")
+st.markdown("관리번호를 직접 입력하거나 스마트폰 카메라로 바코드/QR을 스캔하여 상세 내역과 예방점검 라벨 현황을 확인하세요.")
 
 # 최신 의료기기 현황조회 파일 자동 탐색 함수
 def find_latest_status_file(prefix="의료기기 현황조회", extensions=(".xlsx", ".xlsb", ".xls")):
@@ -118,49 +118,13 @@ if "mgm" in query_params:
         trigger_individual_search(url_mgm)
 
 # ==========================================
-# 📂 좌측 사이드바 구성 (파일 정보 및 카메라 스캐너)
+# 📂 좌측 사이드바 구성 (파일 정보)
 # ==========================================
 st.sidebar.markdown("### 📁 현재 참조 중인 파일")
 st.sidebar.info(
     f"**[의료기기 현황]**\n`{latest_status_path}`\n\n"
     f"**[수리접수 내역 (통합 참조)]**\n`{latest_repair_names}`"
 )
-
-st.sidebar.markdown("---")
-
-st.sidebar.markdown("### 📷 모바일 카메라 스캐너")
-use_camera = st.sidebar.checkbox("모바일 카메라 스캐너 사용", value=False)
-
-if use_camera:
-    st.sidebar.markdown("👇 **카메라를 바코드/QR에 비추세요**")
-    scanner_html = """
-    <div style="width: 100%; max-width: 400px; margin: auto;">
-        <div id="reader" style="width: 100%;"></div>
-    </div>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <script>
-        function onScanSuccess(decodedText, decodedResult) {
-            if (decodedText) {
-                const cleanText = decodedText.trim().toUpperCase();
-                const baseUrl = window.top.location.href.split('?')[0];
-                window.top.location.href = baseUrl + '?mgm=' + encodeURIComponent(cleanText);
-            }
-        }
-        
-        let html5QrcodeScanner = new Html5QrcodeScanner(
-            "reader", 
-            { 
-                fps: 15, 
-                qrbox: { width: 250, height: 150 },
-                aspectRatio: 1.0,
-                rememberLastUsedCamera: true
-            }, 
-            false
-        );
-        html5QrcodeScanner.render(onScanSuccess, (error) => {});
-    </script>
-    """
-    components.html(scanner_html, height=420)
 
 # ==========================================
 # 공통 버튼 스타일 적용
@@ -182,7 +146,7 @@ div.stButton > button:first-child {
 st.markdown("---")
 col_menu1, col_menu2 = st.columns(2)
 
-# 1열: 관리번호 개별 장비 검색
+# 1열: 관리번호 개별 장비 검색 (스마트폰 카메라/바코드 입력 지원 속성 추가)
 with col_menu1:
     st.markdown("#### 🔍 관리번호 개별 장비 검색")
     
@@ -194,10 +158,25 @@ with col_menu1:
         mgm_no_input = st.text_input(
             "관리번호 입력", 
             key="search_input_val", 
-            placeholder="예: 50A1100001", 
+            placeholder="예: 50A1100001 (카메라 스캔 가능)", 
             label_visibility="collapsed",
             on_change=on_search_input_change
         )
+        
+        # 스마트폰 브라우저(iOS Safari, Android Chrome 등)에서 입력창 터치 시 카메라(바코드/QR) 입력 허용하도록 자바스크립트 주입
+        components.html("""
+        <script>
+            const doc = window.parent.document;
+            const inputs = doc.querySelectorAll('input[type="text"]');
+            inputs.forEach(input => {
+                if (input.placeholder && input.placeholder.includes("카메라")) {
+                    input.setAttribute('inputmode', 'text');
+                    input.setAttribute('autocomplete', 'off');
+                }
+            });
+        </script>
+        """, height=0)
+
     with sub_col2:
         search_clicked = st.button("조회", use_container_width=True, key="main_search_btn")
 
@@ -493,4 +472,4 @@ elif selected_dept != '전체보기':
         st.dataframe(dept_filtered_df, use_container_width=True)
 
 else:
-    st.info("💡 상단의 **'관리번호 개별 장비 검색'**에서 번호를 입력하거나, 우측의 **'부서별 장비 리스트 조회'**에서 부서를 선택해주세요. (모바일 카메라는 좌측 사이드바에서 켤 수 있습니다)")
+    st.info("💡 상단의 **'관리번호 개별 장비 검색'**에서 번호를 입력하거나, 우측의 **'부서별 장비 리스트 조회'**에서 부서를 선택해주세요.")
