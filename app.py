@@ -12,8 +12,8 @@ st.set_page_config(page_title="의료장비 통합 조회 시스템", layout="wi
 st.title("🏥 의료장비 관리번호 통합 조회 시스템")
 st.markdown("관리번호를 직접 입력하거나 모바일 카메라로 바코드/QR을 스캔하여 상세 내역과 예방점검 라벨 현황을 확인하세요.")
 
-# 최신 파일 자동 탐색 함수 (정확한 접두사 및 확장자 매칭)
-def find_latest_file(prefix, extensions=(".xlsx", ".xlsb", ".xls")):
+# 최신 의료기기 현황조회 파일 자동 탐색 함수
+def find_latest_status_file(prefix="의료기기 현황조회", extensions=(".xlsx", ".xlsb", ".xls")):
     files = []
     for ext in extensions:
         files.extend(glob.glob(f"{prefix}*{ext}"))
@@ -23,35 +23,53 @@ def find_latest_file(prefix, extensions=(".xlsx", ".xlsb", ".xls")):
     
     def extract_date(filename):
         remainder = filename[len(prefix):]
-        match = re.search(r'(\d+)', remainder)
-        if match:
-            return match.group(1)
+        matches = re.findall(r'(\d+)', remainder)
+        if matches:
+            return matches[-1]
         return ""
     
     files.sort(key=extract_date, reverse=True)
     return files[0]
 
-# 1. 최신 데이터 파일 로드 (캐싱 활용)
+# 1. 데이터 파일 로드 (현황조회 최신 파일 + 수리접수 내역 모든 파일 통합)
 @st.cache_data
 def load_latest_data():
-    status_file = find_latest_file("의료기기 현황조회")
-    repair_file = find_latest_file("수리접수 내역")
+    status_file = find_latest_status_file("의료기기 현황조회")
     
-    if not status_file or not repair_file:
-        raise FileNotFoundError(f"필요한 데이터 파일을 찾을 수 없습니다. (검색된 현황파일: {status_file}, 수리파일: {repair_file})")
+    repair_files = []
+    for ext in (".xlsx", ".xlsb", ".xls"):
+        repair_files.extend(glob.glob(f"수리접수 내역*{ext}"))
+        
+    if not status_file:
+        raise FileNotFoundError("필요한 '의료기기 현황조회' 파일을 찾을 수 없습니다.")
+    if not repair_files:
+        raise FileNotFoundError("필요한 '수리접수 내역' 파일을 찾을 수 없습니다.")
         
     df_status = pd.read_excel(status_file)
     
-    # 수리접수 내역 파일이 .xlsb 바이너리 형식인 경우 pyxlsb 엔진 지정
-    if repair_file.endswith('.xlsb'):
-        df_repair = pd.read_excel(repair_file, engine='pyxlsb')
+    repair_dfs = []
+    for r_file in repair_files:
+        try:
+            if r_file.endswith('.xlsb'):
+                df_r = pd.read_excel(r_file, engine='pyxlsb')
+            else:
+                df_r = pd.read_excel(r_file)
+            repair_dfs.append(df_r)
+        except Exception as e:
+            st.warning(f"파일을 읽는 중 오류 발생 ({r_file}): {e}")
+            
+    if repair_dfs:
+        df_repair = pd.concat(repair_dfs, ignore_index=True)
+        df_repair = df_repair.drop_duplicates()
     else:
-        df_repair = pd.read_excel(repair_file)
+        df_repair = pd.DataFrame()
         
-    return df_status, df_repair, status_file, repair_file
+    repair_file_names = ", ".join([os.path.basename(f) for f in repair_files])
+    
+    return df_status, df_repair, status_file, repair_file_names
 
 try:
-    df_status, df_repair, latest_status_path, latest_repair_path = load_latest_data()
+    df_status, df_repair, latest_status_path, latest_repair_names = load_latest_data()
 except Exception as e:
     st.error(f"데이터 파일을 불러오는 중 오류가 발생했습니다: {e}")
     st.stop()
@@ -61,18 +79,6 @@ except Exception as e:
 # ==========================================
 if "search_query" not in st.session_state:
     st.session_state["search_query"] = ""
-
-# Streamlit Community Cloud URL 쿼리 파라미터 자동 연동 (?mgm=관리번호)
-query_params = st.query_params
-if "mgm" in query_params:
-    url_mgm = query_params["mgm"]
-    if isinstance(url_mgm, list):
-        url_mgm = url_mgm[0]
-    if url_mgm and url_mgm.strip().upper() != st.session_state["search_query"]:
-        st.session_state["search_query"] = url_mgm.strip().upper()
-        st.session_state["dept_selection"] = "전체보기"  # URL로 들어올 때도 부서 초기화
-        st.session_state["last_queried_no"] = url_mgm.strip().upper()
-        st.session_state["auto_popup_shown"] = False
 
 if "dept_selection" not in st.session_state:
     st.session_state["dept_selection"] = "전체보기"
@@ -86,12 +92,31 @@ if "last_queried_no" not in st.session_state:
 if "auto_popup_shown" not in st.session_state:
     st.session_state["auto_popup_shown"] = False
 
+# 공통 검색 실행 처리 함수 (개별 검색 시 부서 선택을 강제로 '전체보기'로 바꿈)
+def trigger_individual_search(query_val):
+    clean_q = query_val.strip().upper()
+    st.session_state["search_query"] = clean_q
+    if clean_q:
+        st.session_state["dept_selection"] = "전체보기"  # 👈 부서 선택 전체보기로 강제 초기화
+        st.session_state["show_repair"] = False
+        if clean_q != st.session_state["last_queried_no"]:
+            st.session_state["last_queried_no"] = clean_q
+            st.session_state["auto_popup_shown"] = False
+
+# Streamlit Community Cloud URL 쿼리 파라미터 자동 연동 (?mgm=관리번호)
+query_params = st.query_params
+if "mgm" in query_params:
+    url_mgm = query_params["mgm"]
+    if isinstance(url_mgm, list):
+        url_mgm = url_mgm[0]
+    if url_mgm and url_mgm.strip().upper() != st.session_state["search_query"]:
+        trigger_individual_search(url_mgm)
+
 # ==========================================
 # 📂 좌측 사이드바 구성 (설정 및 카메라 스캐너)
 # ==========================================
 st.sidebar.title("🛠️ 제어판 및 설정")
 
-# 초기화 버튼 영역
 if st.sidebar.button("🔄 검색 및 부서 초기화", use_container_width=True):
     st.session_state["search_query"] = ""
     st.session_state["dept_selection"] = "전체보기"
@@ -102,16 +127,14 @@ if st.sidebar.button("🔄 검색 및 부서 초기화", use_container_width=Tru
 
 st.sidebar.markdown("---")
 
-# 1. 참조 파일 확인 영역
 st.sidebar.markdown("### 📁 현재 참조 중인 파일")
 st.sidebar.info(
     f"**[의료기기 현황]**\n`{latest_status_path}`\n\n"
-    f"**[수리접수 내역 (.xlsb)]**\n`{latest_repair_path}`"
+    f"**[수리접수 내역 (통합 참조)]**\n`{latest_repair_names}`"
 )
 
 st.sidebar.markdown("---")
 
-# 2. 모바일 카메라 바코드/QR 스캐너 영역
 st.sidebar.markdown("### 📷 모바일 카메라 스캐너")
 use_camera = st.sidebar.checkbox("모바일 카메라 스캐너 사용", value=False)
 
@@ -159,24 +182,25 @@ tab_search1, tab_search2 = st.tabs(["🔍 관리번호 개별 장비 검색", "�
 # Tab 1: 관리번호 개별 장비 검색
 with tab_search1:
     st.markdown("##### 장비의 관리번호를 입력하거나 [조회] 버튼을 누르세요.")
+    
+    def on_search_input_change():
+        trigger_individual_search(st.session_state["search_query"])
+
     col_input, col_btn = st.columns([7, 3])
     with col_input:
-        mgm_no_input = st.text_input("관리번호 입력", value=st.session_state["search_query"], placeholder="예: 50A1100001", label_visibility="collapsed")
+        mgm_no_input = st.text_input(
+            "관리번호 입력", 
+            key="search_query", 
+            placeholder="예: 50A1100001", 
+            label_visibility="collapsed",
+            on_change=on_search_input_change
+        )
     with col_btn:
         search_clicked = st.button("조회", use_container_width=True, key="main_search_btn")
 
-    # 조회 버튼을 누르거나 입력값이 변경된 경우 처리
-    if search_clicked or (mgm_no_input.strip().upper() != st.session_state["search_query"]):
-        new_q = mgm_no_input.strip().upper()
-        if search_clicked or new_q != st.session_state["search_query"]:
-            st.session_state["search_query"] = new_q
-            st.session_state["dept_selection"] = "전체보기"  # 👈 개별 검색 시 부서 선택을 '전체보기'로 강제 초기화
-            st.session_state["show_repair"] = False
-            
-            if new_q != st.session_state["last_queried_no"]:
-                st.session_state["last_queried_no"] = new_q
-                st.session_state["auto_popup_shown"] = False
-            st.rerun()
+    if search_clicked:
+        trigger_individual_search(st.session_state["search_query"])
+        st.rerun()
 
 query = st.session_state["search_query"]
 
@@ -198,7 +222,8 @@ with tab_search2:
         
         if selected_dept != st.session_state["dept_selection"]:
             st.session_state["dept_selection"] = selected_dept
-            st.session_state["search_query"] = ""  # 부서 선택 시 개별 검색 초기화
+            if selected_dept != '전체보기':
+                st.session_state["search_query"] = ""  # 부서 선택 시 개별 검색 초기화
             st.rerun()
     else:
         selected_dept = '전체보기'
@@ -275,7 +300,6 @@ if query:
         date_color = "#111"
         alert_html = ""
         
-        # 사용부서가 '88' 또는 '77'인 경우 예외 처리
         is_disposed_dept = str(raw_dept_val).strip() in ['88', '77']
         is_dept_88 = str(raw_dept_val).strip() == '88'
 
@@ -349,7 +373,6 @@ if query:
 
         st.markdown("---")
 
-        # 메인 화면: 의료장비 상세내역 기본 노출
         if is_dept_88:
             st.markdown("### 📋 의료장비 상세내역 <span style='color: red;'>-폐기완료장비-</span>", unsafe_allow_html=True)
         else:
@@ -417,7 +440,6 @@ if query:
         
         st.markdown("---")
 
-        # 수리내역 확인용 별도 버튼
         if st.button("🔧 수리접수 이력 확인하기", use_container_width=True):
             st.session_state["show_repair"] = not st.session_state["show_repair"]
 
