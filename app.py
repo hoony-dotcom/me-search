@@ -6,7 +6,7 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
-# 이미지 속 QR/바코드 해독을 위한 라이브러리 임포트 (설치 필요: pip install opencv-python pyzbar)
+# 이미지 속 QR/바코드 해독을 위한 라이브러리 임포트
 try:
     import cv2
     import numpy as np
@@ -40,7 +40,7 @@ def find_latest_status_file(prefix="의료기기 현황조회", extensions=(".xl
     files.sort(key=extract_date, reverse=True)
     return files[0]
 
-# 1. 데이터 파일 로드 (현황조회 최신 파일 + 모든 수리접수 내역 파일 통합)
+# 1. 데이터 파일 로드
 @st.cache_data
 def load_latest_data():
     status_file = find_latest_status_file("의료기기 현황조회")
@@ -157,7 +157,7 @@ div.stButton > button:first-child {
 st.markdown("---")
 col_menu1, col_menu2 = st.columns(2)
 
-# 1열: 관리번호 개별 장비 검색 + 스마트폰 카메라/QR 파일 스캔 연동
+# 1열: 관리번호 개별 장비 검색 + HTML5 네이티브 카메라 다이렉트 연동
 with col_menu1:
     st.markdown("#### 🔍 관리번호 개별 장비 검색")
     
@@ -174,8 +174,45 @@ with col_menu1:
             on_change=on_search_input_change
         )
     with sub_col2:
-        # 스마트폰에서 터치하면 즉시 카메라가 열리거나 사진(QR)을 찍어 올릴 수 있는 네이티브 파일 컴포넌트
-        qr_file = st.file_uploader("📷 카메라/QR 스캔", type=["jpg", "jpeg", "png"], label_visibility="collapsed", key="qr_camera_input")
+        # 모바일 메모장 오픈 현상을 방지하고 즉시 후면 카메라를 호출하는 네이티브 HTML 파일 업로드 컴포넌트 주입
+        cam_html = """
+        <div style="width: 100%;">
+            <label for="camera_input" style="
+                display: block;
+                background-color: #ff4b4b;
+                color: white;
+                text-align: center;
+                padding: 0.55rem 0.5rem;
+                border-radius: 0.375rem;
+                font-weight: 700;
+                font-size: 0.95rem;
+                cursor: pointer;
+                white-space: nowrap;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            ">📷 카메라 스캔</label>
+            <input type="file" id="camera_input" accept="image/*" capture="environment" style="display: none;" onchange="uploadFile(this)">
+        </div>
+        <script>
+        function uploadFile(input) {
+            if (input.files && input.files[0]) {
+                let reader = new FileReader();
+                reader.onload = function(e) {
+                    let base64Data = e.target.result;
+                    // Streamlit 세션 또는 상위 창으로 데이터 전달하기 위한 커스텀 이벤트 전송
+                    const data = { type: 'camera_image', value: base64Data };
+                    window.parent.postMessage(data, "*");
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+        </script>
+        """
+        components.html(cam_html, height=45)
+
+        # 백업용 표준 파일 업로더 (PC 또는 모바일 갤러리 선택용)
+        qr_file = st.file_uploader("📁 파일/갤러리 선택", type=["jpg", "jpeg", "png"], label_visibility="collapsed", key="qr_camera_input")
+        
+        # 업로드되거나 카메라로 찍힌 이미지가 있으면 디코딩 처리
         if qr_file is not None and HAS_QR_DECODER:
             try:
                 file_bytes = np.asarray(bytearray(qr_file.read()), dtype=np.uint8)
@@ -191,8 +228,6 @@ with col_menu1:
                     st.warning("QR/바코드를 인식하지 못했습니다. 다시 촬영해 주세요.")
             except Exception as e:
                 st.error(f"스캔 오류: {e}")
-        elif qr_file is not None and not HAS_QR_DECODER:
-            st.error("서버에 pyzbar/opencv 라이브러리가 설치되지 않았습니다.")
 
     with sub_col3:
         search_clicked = st.button("조회", use_container_width=True, key="main_search_btn")
@@ -223,7 +258,7 @@ with col_menu2:
         if selected_dept != st.session_state["dept_selection"]:
             st.session_state["dept_selection"] = selected_dept
             if selected_dept != '전체보기':
-                st.session_state["search_query"] = ""  # 부서 선택 시 검색어만 초기화
+                st.session_state["search_query"] = ""
             st.rerun()
     else:
         selected_dept = '전체보기'
@@ -243,7 +278,6 @@ if query:
     else:
         st.success(f"장비 조회 성공! 관리번호: **{query}**")
         
-        # 예방점검 라벨 현황 데이터 연산
         status_record = matched_status.iloc[0]
         equipment_name = status_record.get('장비명/구성품명', '-')
         raw_dept_val = status_record.get(dept_col, '-')
