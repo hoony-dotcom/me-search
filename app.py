@@ -1,4 +1,4 @@
-glob
+import glob
 import os
 import re
 from datetime import datetime
@@ -9,6 +9,7 @@ import streamlit.components.v1 as components
 # 이미지 속 QR/바코드 해독을 위한 라이브러리 임포트 (설치 필요: pip install opencv-python pyzbar)
 try:
     import cv2
+    import numpy as np
     from pyzbar.pyzbar import decode
     HAS_QR_DECODER = True
 except ImportError:
