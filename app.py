@@ -354,8 +354,8 @@ if query:
                         인하대병원 의용공학팀 &nbsp;|&nbsp; 정비자: {repairer_name}
                     </div>
                 </div>
-                <div style="text-align: center; font-size: 0.8rem; color: #0275d8; font-weight: 500; margin-top: 8px; animation: sub_blink 1.2s infinite;">
-                    현재 데이터는 전월 말일 기준이므로 확실한 확인은 INHIS에서 조회하세요
+                <div style="text-align: center; font-size: 0.96rem; color: #0275d8; font-weight: 600; margin-top: 10px; animation: sub_blink 1.2s infinite;">
+                    전월 말일 기준으로 정확한 데이터는 INHIS에서 확인 요망
                 </div>
                 """,
                 unsafe_allow_html=True
