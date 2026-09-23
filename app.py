@@ -62,25 +62,7 @@ except Exception as e:
 if "search_query" not in st.session_state:
     st.session_state["search_query"] = ""
 
-if "dept_selection" not in st.session_state:
-    st.session_state["dept_selection"] = "전체보기"
-
-if "show_repair" not in st.session_state:
-    st.session_state["show_repair"] = False
-
-if "last_queried_no" not in st.session_state:
-    st.session_state["last_queried_no"] = ""
-
-if "auto_popup_shown" not in st.session_state:
-    st.session_state["auto_popup_shown"] = False
-
-# ==========================================
-# 세션 상태 초기화
-# ==========================================
-if "search_query" not in st.session_state:
-    st.session_state["search_query"] = ""
-
-# 📌 [추가] Streamlit Community Cloud URL 쿼리 파라미터 자동 연동 (?mgm=관리번호)
+# Streamlit Community Cloud URL 쿼리 파라미터 자동 연동 (?mgm=관리번호)
 query_params = st.query_params
 if "mgm" in query_params:
     url_mgm = query_params["mgm"]
@@ -93,7 +75,16 @@ if "mgm" in query_params:
 
 if "dept_selection" not in st.session_state:
     st.session_state["dept_selection"] = "전체보기"
-# ... (이하 기존 코드 동일)
+
+if "show_repair" not in st.session_state:
+    st.session_state["show_repair"] = False
+
+if "last_queried_no" not in st.session_state:
+    st.session_state["last_queried_no"] = ""
+
+if "auto_popup_shown" not in st.session_state:
+    st.session_state["auto_popup_shown"] = False
+
 # ==========================================
 # 📂 좌측 사이드바 구성
 # ==========================================
@@ -119,18 +110,26 @@ st.sidebar.info(
 
 st.sidebar.markdown("---")
 
-# 2. 장비 검색 영역 (관리번호 입력)
+# 2. 장비 검색 영역 (관리번호 입력 및 조회 버튼 나란히 배치)
 st.sidebar.markdown("### 🔍 관리번호 개별 장비 검색")
-mgm_no_input = st.sidebar.text_input("관리번호 입력", value=st.session_state["search_query"], placeholder="예: 50A1100001 또는 50M1100162")
 
-if mgm_no_input != st.session_state["search_query"]:
+col_input, col_btn = st.sidebar.columns([7, 3])
+with col_input:
+    mgm_no_input = st.text_input("관리번호 입력", value=st.session_state["search_query"], placeholder="예: 50A1100001", label_visibility="collapsed")
+with col_btn:
+    search_clicked = st.button("조회", use_container_width=True)
+
+# 조회 버튼을 누르거나 입력값이 변경된 경우 처리
+if search_clicked or (mgm_no_input.strip().upper() != st.session_state["search_query"]):
     new_q = mgm_no_input.strip().upper()
-    st.session_state["search_query"] = new_q
-    st.session_state["show_repair"] = False
-    
-    if new_q != st.session_state["last_queried_no"]:
-        st.session_state["last_queried_no"] = new_q
-        st.session_state["auto_popup_shown"] = False
+    if search_clicked or new_q != st.session_state["search_query"]:
+        st.session_state["search_query"] = new_q
+        st.session_state["show_repair"] = False
+        
+        if new_q != st.session_state["last_queried_no"]:
+            st.session_state["last_queried_no"] = new_q
+            st.session_state["auto_popup_shown"] = False
+        st.rerun()
 
 query = st.session_state["search_query"]
 
@@ -149,13 +148,11 @@ if use_camera:
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script>
         function onScanSuccess(decodedText, decodedResult) {
-            const inputField = parent.document.querySelector('input[aria-label="관리번호 입력"]');
-            if (inputField) {
-                inputField.value = decodedText.trim().toUpperCase();
-                inputField.dispatchEvent(new Event('input', { bubbles: true }));
-                inputField.dispatchEvent(new Event('change', { bubbles: true }));
-            }
+            const cleanText = decodedText.trim().toUpperCase();
+            const baseUrl = window.top.location.href.split('?')[0];
+            window.top.location.href = baseUrl + '?mgm=' + encodeURIComponent(cleanText);
         }
+        
         let html5QrcodeScanner = new Html5QrcodeScanner(
             "reader", { fps: 10, qrbox: { width: 250, height: 150 } }, false);
         html5QrcodeScanner.render(onScanSuccess, (error) => {});
@@ -345,7 +342,7 @@ if query:
 
         st.markdown("---")
 
-        # 메인 화면: 의료장비 상세내역 기본 노출 (st.markdown을 사용하여 HTML 렌더링 허용)
+        # 메인 화면: 의료장비 상세내역 기본 노출
         if is_dept_88:
             st.markdown("### 📋 의료장비 상세내역 <span style='color: red;'>-폐기완료장비-</span>", unsafe_allow_html=True)
         else:
@@ -356,7 +353,6 @@ if query:
         cols = st.columns(2)
         half_len = (len(preview_items) + 1) // 2
         
-        # 상세내역 폰트 색상 제어 (부서가 88인 경우 빨간색)
         font_color_style = "color: red;" if is_dept_88 else ""
 
         with cols[0]:
