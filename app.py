@@ -70,6 +70,7 @@ if "mgm" in query_params:
         url_mgm = url_mgm[0]
     if url_mgm and url_mgm.strip().upper() != st.session_state["search_query"]:
         st.session_state["search_query"] = url_mgm.strip().upper()
+        st.session_state["dept_selection"] = "전체보기"  # URL로 들어올 때도 부서 초기화
         st.session_state["last_queried_no"] = url_mgm.strip().upper()
         st.session_state["auto_popup_shown"] = False
 
@@ -169,7 +170,7 @@ with tab_search1:
         new_q = mgm_no_input.strip().upper()
         if search_clicked or new_q != st.session_state["search_query"]:
             st.session_state["search_query"] = new_q
-            st.session_state["dept_selection"] = "전체보기"  # 개별 검색 시 부서 선택 초기화
+            st.session_state["dept_selection"] = "전체보기"  # 👈 개별 검색 시 부서 선택을 '전체보기'로 강제 초기화
             st.session_state["show_repair"] = False
             
             if new_q != st.session_state["last_queried_no"]:
