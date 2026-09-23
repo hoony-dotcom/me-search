@@ -1,9 +1,8 @@
-import streamlit as st
-import pandas as pd
 import glob
 import os
 import re
 from datetime import datetime
+import streamlit as st
 import streamlit.components.v1 as components
 
 # 페이지 설정
@@ -77,6 +76,9 @@ except Exception as e:
 # ==========================================
 # 세션 상태 초기화
 # ==========================================
+if "search_input_val" not in st.session_state:
+    st.session_state["search_input_val"] = ""
+
 if "search_query" not in st.session_state:
     st.session_state["search_query"] = ""
 
@@ -96,8 +98,9 @@ if "auto_popup_shown" not in st.session_state:
 def trigger_individual_search(query_val):
     clean_q = query_val.strip().upper()
     st.session_state["search_query"] = clean_q
+    st.session_state["search_input_val"] = clean_q  # 입력창 값도 동기화
     if clean_q:
-        st.session_state["dept_selection"] = "전체보기"  # 👈 부서 선택 전체보기로 강제 초기화
+        st.session_state["dept_selection"] = "전체보기"  # 부서 선택 전체보기로 강제 초기화
         st.session_state["show_repair"] = False
         if clean_q != st.session_state["last_queried_no"]:
             st.session_state["last_queried_no"] = clean_q
@@ -113,20 +116,8 @@ if "mgm" in query_params:
         trigger_individual_search(url_mgm)
 
 # ==========================================
-# 📂 좌측 사이드바 구성 (설정 및 카메라 스캐너)
+# 📂 좌측 사이드바 구성 (파일 정보 및 카메라 스캐너)
 # ==========================================
-st.sidebar.title("🛠️ 제어판 및 설정")
-
-if st.sidebar.button("🔄 검색 및 부서 초기화", use_container_width=True):
-    st.session_state["search_query"] = ""
-    st.session_state["dept_selection"] = "전체보기"
-    st.session_state["show_repair"] = False
-    st.session_state["last_queried_no"] = ""
-    st.session_state["auto_popup_shown"] = False
-    st.rerun()
-
-st.sidebar.markdown("---")
-
 st.sidebar.markdown("### 📁 현재 참조 중인 파일")
 st.sidebar.info(
     f"**[의료기기 현황]**\n`{latest_status_path}`\n\n"
@@ -184,13 +175,13 @@ with tab_search1:
     st.markdown("##### 장비의 관리번호를 입력하거나 [조회] 버튼을 누르세요.")
     
     def on_search_input_change():
-        trigger_individual_search(st.session_state["search_query"])
+        trigger_individual_search(st.session_state["search_input_val"])
 
     col_input, col_btn = st.columns([7, 3])
     with col_input:
         mgm_no_input = st.text_input(
             "관리번호 입력", 
-            key="search_query", 
+            key="search_input_val", 
             placeholder="예: 50A1100001", 
             label_visibility="collapsed",
             on_change=on_search_input_change
@@ -199,7 +190,7 @@ with tab_search1:
         search_clicked = st.button("조회", use_container_width=True, key="main_search_btn")
 
     if search_clicked:
-        trigger_individual_search(st.session_state["search_query"])
+        trigger_individual_search(st.session_state["search_input_val"])
         st.rerun()
 
 query = st.session_state["search_query"]
@@ -224,6 +215,7 @@ with tab_search2:
             st.session_state["dept_selection"] = selected_dept
             if selected_dept != '전체보기':
                 st.session_state["search_query"] = ""  # 부서 선택 시 개별 검색 초기화
+                st.session_state["search_input_val"] = ""
             st.rerun()
     else:
         selected_dept = '전체보기'
