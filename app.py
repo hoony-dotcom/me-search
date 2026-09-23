@@ -101,6 +101,8 @@ def trigger_individual_search(query_val):
     st.session_state["search_query"] = clean_q
     if clean_q:
         st.session_state["dept_selection"] = "전체보기"  # 부서 선택 전체보기로 강제 초기화
+        # 셀렉트박스 위젯 자체의 내부 캐시 상태도 강제로 리셋
+        st.session_state["dept_selectbox_active"] = "전체보기"
         st.session_state["show_repair"] = False
         if clean_q != st.session_state["last_queried_no"]:
             st.session_state["last_queried_no"] = clean_q
@@ -216,7 +218,8 @@ with col_menu2:
         if selected_dept != st.session_state["dept_selection"]:
             st.session_state["dept_selection"] = selected_dept
             if selected_dept != '전체보기':
-                st.session_state["search_query"] = ""  # 부서 선택 시 개별 검색어만 초기화 (입력 위젯 직접 조작 안 함)
+                st.session_state["search_query"] = ""  # 부서 선택 시 개별 검색어만 초기화
+                st.session_state["search_input_val"] = ""
             st.rerun()
     else:
         selected_dept = '전체보기'
