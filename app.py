@@ -75,6 +75,26 @@ if "auto_popup_shown" not in st.session_state:
     st.session_state["auto_popup_shown"] = False
 
 # ==========================================
+# 세션 상태 초기화
+# ==========================================
+if "search_query" not in st.session_state:
+    st.session_state["search_query"] = ""
+
+# 📌 [추가] Streamlit Community Cloud URL 쿼리 파라미터 자동 연동 (?mgm=관리번호)
+query_params = st.query_params
+if "mgm" in query_params:
+    url_mgm = query_params["mgm"]
+    if isinstance(url_mgm, list):
+        url_mgm = url_mgm[0]
+    if url_mgm and url_mgm.strip().upper() != st.session_state["search_query"]:
+        st.session_state["search_query"] = url_mgm.strip().upper()
+        st.session_state["last_queried_no"] = url_mgm.strip().upper()
+        st.session_state["auto_popup_shown"] = False
+
+if "dept_selection" not in st.session_state:
+    st.session_state["dept_selection"] = "전체보기"
+# ... (이하 기존 코드 동일)
+# ==========================================
 # 📂 좌측 사이드바 구성
 # ==========================================
 st.sidebar.title("🛠️ 제어판 및 설정")
