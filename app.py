@@ -2,6 +2,7 @@ import glob
 import os
 import re
 from datetime import datetime
+import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -94,7 +95,7 @@ if "last_queried_no" not in st.session_state:
 if "auto_popup_shown" not in st.session_state:
     st.session_state["auto_popup_shown"] = False
 
-# 공통 검색 실행 처리 함수 (개별 검색 시 부서 선택을 강제로 '전체보기'로 바콤)
+# 공통 검색 실행 처리 함수 (개별 검색 시 부서 선택을 강제로 '전체보기'로 바꿈)
 def trigger_individual_search(query_val):
     clean_q = query_val.strip().upper()
     st.session_state["search_query"] = clean_q
