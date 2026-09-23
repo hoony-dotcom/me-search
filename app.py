@@ -216,8 +216,7 @@ with col_menu2:
         if selected_dept != st.session_state["dept_selection"]:
             st.session_state["dept_selection"] = selected_dept
             if selected_dept != '전체보기':
-                st.session_state["search_query"] = ""  # 부서 선택 시 개별 검색어 초기화
-                st.session_state["search_input_val"] = ""
+                st.session_state["search_query"] = ""  # 부서 선택 시 개별 검색어만 초기화 (입력 위젯 직접 조작 안 함)
             st.rerun()
     else:
         selected_dept = '전체보기'
