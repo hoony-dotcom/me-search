@@ -94,11 +94,10 @@ if "last_queried_no" not in st.session_state:
 if "auto_popup_shown" not in st.session_state:
     st.session_state["auto_popup_shown"] = False
 
-# 공통 검색 실행 처리 함수 (개별 검색 시 부서 선택을 강제로 '전체보기'로 바꿈)
+# 공통 검색 실행 처리 함수 (개별 검색 시 부서 선택을 강제로 '전체보기'로 바콤)
 def trigger_individual_search(query_val):
     clean_q = query_val.strip().upper()
     st.session_state["search_query"] = clean_q
-    st.session_state["search_input_val"] = clean_q  # 입력창 값도 동기화
     if clean_q:
         st.session_state["dept_selection"] = "전체보기"  # 부서 선택 전체보기로 강제 초기화
         st.session_state["show_repair"] = False
@@ -113,6 +112,7 @@ if "mgm" in query_params:
     if isinstance(url_mgm, list):
         url_mgm = url_mgm[0]
     if url_mgm and url_mgm.strip().upper() != st.session_state["search_query"]:
+        st.session_state["search_input_val"] = url_mgm.strip().upper()
         trigger_individual_search(url_mgm)
 
 # ==========================================
@@ -214,8 +214,7 @@ with tab_search2:
         if selected_dept != st.session_state["dept_selection"]:
             st.session_state["dept_selection"] = selected_dept
             if selected_dept != '전체보기':
-                st.session_state["search_query"] = ""  # 부서 선택 시 개별 검색 초기화
-                st.session_state["search_input_val"] = ""
+                st.session_state["search_query"] = ""  # 부서 선택 시 개별 검색어만 초기화
             st.rerun()
     else:
         selected_dept = '전체보기'
