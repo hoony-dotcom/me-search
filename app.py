@@ -60,7 +60,6 @@ def load_latest_data():
             
     if repair_dfs:
         df_repair = pd.concat(repair_dfs, ignore_index=True)
-        # 중복 데이터 제거
         df_repair = df_repair.drop_duplicates()
     else:
         df_repair = pd.DataFrame()
@@ -141,17 +140,27 @@ if use_camera:
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script>
         function onScanSuccess(decodedText, decodedResult) {
-            const cleanText = decodedText.trim().toUpperCase();
-            const baseUrl = window.top.location.href.split('?')[0];
-            window.top.location.href = baseUrl + '?mgm=' + encodeURIComponent(cleanText);
+            if (decodedText) {
+                const cleanText = decodedText.trim().toUpperCase();
+                const baseUrl = window.top.location.href.split('?')[0];
+                window.top.location.href = baseUrl + '?mgm=' + encodeURIComponent(cleanText);
+            }
         }
         
         let html5QrcodeScanner = new Html5QrcodeScanner(
-            "reader", { fps: 10, qrbox: { width: 250, height: 150 } }, false);
+            "reader", 
+            { 
+                fps: 15, 
+                qrbox: { width: 250, height: 150 },
+                aspectRatio: 1.0,
+                rememberLastUsedCamera: true
+            }, 
+            false
+        );
         html5QrcodeScanner.render(onScanSuccess, (error) => {});
     </script>
     """
-    components.html(scanner_html, height=350)
+    components.html(scanner_html, height=420)
 
 # ==========================================
 # 공통 버튼 스타일 적용
