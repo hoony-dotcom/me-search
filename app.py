@@ -86,11 +86,11 @@ if "auto_popup_shown" not in st.session_state:
     st.session_state["auto_popup_shown"] = False
 
 # ==========================================
-# 📂 좌측 사이드바 구성
+# 📂 좌측 사이드바 구성 (설정 및 카메라 스캐너)
 # ==========================================
 st.sidebar.title("🛠️ 제어판 및 설정")
 
-# 초기화 버튼 영역 (상단 배치)
+# 초기화 버튼 영역
 if st.sidebar.button("🔄 검색 및 부서 초기화", use_container_width=True):
     st.session_state["search_query"] = ""
     st.session_state["dept_selection"] = "전체보기"
@@ -110,32 +110,7 @@ st.sidebar.info(
 
 st.sidebar.markdown("---")
 
-# 2. 장비 검색 영역 (관리번호 입력 및 조회 버튼 나란히 배치)
-st.sidebar.markdown("### 🔍 관리번호 개별 장비 검색")
-
-col_input, col_btn = st.sidebar.columns([7, 3])
-with col_input:
-    mgm_no_input = st.text_input("관리번호 입력", value=st.session_state["search_query"], placeholder="예: 50A1100001", label_visibility="collapsed")
-with col_btn:
-    search_clicked = st.button("조회", use_container_width=True)
-
-# 조회 버튼을 누르거나 입력값이 변경된 경우 처리
-if search_clicked or (mgm_no_input.strip().upper() != st.session_state["search_query"]):
-    new_q = mgm_no_input.strip().upper()
-    if search_clicked or new_q != st.session_state["search_query"]:
-        st.session_state["search_query"] = new_q
-        st.session_state["show_repair"] = False
-        
-        if new_q != st.session_state["last_queried_no"]:
-            st.session_state["last_queried_no"] = new_q
-            st.session_state["auto_popup_shown"] = False
-        st.rerun()
-
-query = st.session_state["search_query"]
-
-st.sidebar.markdown("---")
-
-# 3. 모바일 카메라 바코드/QR 스캐너 영역
+# 2. 모바일 카메라 바코드/QR 스캐너 영역
 st.sidebar.markdown("### 📷 모바일 카메라 스캐너")
 use_camera = st.sidebar.checkbox("모바일 카메라 스캐너 사용", value=False)
 
@@ -160,31 +135,6 @@ if use_camera:
     """
     components.html(scanner_html, height=350)
 
-st.sidebar.markdown("---")
-
-# 4. 사용부서별 장비 리스트 조회 영역
-st.sidebar.markdown("### 🏢 부서별 장비 리스트 조회")
-dept_col = '사용\n부서' if '사용\n부서' in df_status.columns else '사용부서'
-
-if dept_col in df_status.columns:
-    raw_depts = df_status[dept_col].dropna().astype(str).str.strip()
-    unique_depts = sorted(list(set(raw_depts)), key=lambda x: x.lower())
-    dept_list = ['전체보기'] + unique_depts
-    
-    current_dept = st.session_state["dept_selection"]
-    if current_dept not in dept_list:
-        current_dept = '전체보기'
-    dept_idx = dept_list.index(current_dept)
-    
-    selected_dept = st.sidebar.selectbox("사용부서 선택", dept_list, index=dept_idx, key="dept_selectbox_active")
-    
-    if selected_dept != st.session_state["dept_selection"]:
-        st.session_state["dept_selection"] = selected_dept
-        st.rerun()
-else:
-    selected_dept = '전체보기'
-    st.sidebar.warning("사용부서 컬럼을 찾을 수 없습니다.")
-
 # ==========================================
 # 공통 버튼 스타일 적용
 # ==========================================
@@ -200,7 +150,63 @@ div.stButton > button:first-child {
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 메인 화면 콘텐츠 영역
+# 메인 페이지 상단: 검색 및 조회 영역
+# ==========================================
+st.markdown("---")
+tab_search1, tab_search2 = st.tabs(["🔍 관리번호 개별 장비 검색", "🏢 부서별 장비 리스트 조회"])
+
+# Tab 1: 관리번호 개별 장비 검색
+with tab_search1:
+    st.markdown("##### 장비의 관리번호를 입력하거나 [조회] 버튼을 누르세요.")
+    col_input, col_btn = st.columns([7, 3])
+    with col_input:
+        mgm_no_input = st.text_input("관리번호 입력", value=st.session_state["search_query"], placeholder="예: 50A1100001", label_visibility="collapsed")
+    with col_btn:
+        search_clicked = st.button("조회", use_container_width=True, key="main_search_btn")
+
+    # 조회 버튼을 누르거나 입력값이 변경된 경우 처리
+    if search_clicked or (mgm_no_input.strip().upper() != st.session_state["search_query"]):
+        new_q = mgm_no_input.strip().upper()
+        if search_clicked or new_q != st.session_state["search_query"]:
+            st.session_state["search_query"] = new_q
+            st.session_state["dept_selection"] = "전체보기"  # 개별 검색 시 부서 선택 초기화
+            st.session_state["show_repair"] = False
+            
+            if new_q != st.session_state["last_queried_no"]:
+                st.session_state["last_queried_no"] = new_q
+                st.session_state["auto_popup_shown"] = False
+            st.rerun()
+
+query = st.session_state["search_query"]
+
+# Tab 2: 부서별 장비 리스트 조회
+with tab_search2:
+    dept_col = '사용\n부서' if '사용\n부서' in df_status.columns else '사용부서'
+
+    if dept_col in df_status.columns:
+        raw_depts = df_status[dept_col].dropna().astype(str).str.strip()
+        unique_depts = sorted(list(set(raw_depts)), key=lambda x: x.lower())
+        dept_list = ['전체보기'] + unique_depts
+        
+        current_dept = st.session_state["dept_selection"]
+        if current_dept not in dept_list:
+            current_dept = '전체보기'
+        dept_idx = dept_list.index(current_dept)
+        
+        selected_dept = st.selectbox("사용부서 선택", dept_list, index=dept_idx, key="dept_selectbox_active")
+        
+        if selected_dept != st.session_state["dept_selection"]:
+            st.session_state["dept_selection"] = selected_dept
+            st.session_state["search_query"] = ""  # 부서 선택 시 개별 검색 초기화
+            st.rerun()
+    else:
+        selected_dept = '전체보기'
+        st.warning("사용부서 컬럼을 찾을 수 없습니다.")
+
+st.markdown("---")
+
+# ==========================================
+# 메인 화면 콘텐츠 결과 출력 영역
 # ==========================================
 
 if query:
@@ -452,4 +458,4 @@ elif selected_dept != '전체보기':
         st.dataframe(dept_filtered_df, use_container_width=True)
 
 else:
-    st.info("👈 좌측 사이드바의 모바일 카메라 스캐너를 켜거나 관리번호를 직접 입력해주세요.")
+    st.info("💡 상단의 **'관리번호 개별 장비 검색'** 탭에서 번호를 입력하거나, **'부서별 장비 리스트 조회'** 탭에서 부서를 선택해주세요. (모바일 카메라는 좌측 사이드바에서 켤 수 있습니다)")
