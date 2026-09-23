@@ -7,9 +7,9 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # 페이지 설정
-st.set_page_config(page_title="의료장비 통합 조회 시스템", layout="wide")
+st.set_page_config(page_title="인하대병원 의료장비 조회 시스템", layout="wide")
 
-st.title("🏥 의료장비 관리번호 통합 조회 시스템")
+st.title("🏥 인하대병원 의료장비 조회 시스템")
 st.markdown("관리번호를 직접 입력하거나 모바일 카메라로 바코드/QR을 스캔하여 상세 내역과 예방점검 라벨 현황을 확인하세요.")
 
 # 최신 의료기기 현황조회 파일 자동 탐색 함수
@@ -217,7 +217,7 @@ with col_menu2:
         if selected_dept != st.session_state["dept_selection"]:
             st.session_state["dept_selection"] = selected_dept
             if selected_dept != '전체보기':
-                st.session_state["search_query"] = ""  # 부서 선택 시 검색어만 초기화 (입력 위젯 직접 조작 안 함)
+                st.session_state["search_query"] = ""  # 부서 선택 시 검색어만 초기화
             st.rerun()
     else:
         selected_dept = '전체보기'
@@ -326,6 +326,11 @@ if query:
                     50% {{ opacity: 0.2; }}
                     100% {{ opacity: 1; }}
                 }}
+                @keyframes sub_blink {{
+                    0% {{ opacity: 1; }}
+                    50% {{ opacity: 0.3; }}
+                    100% {{ opacity: 1; }}
+                }}
                 </style>
                 <div style="border: 2px solid #333; padding: 15px; border-radius: 8px; background-color: #fafafa; font-family: sans-serif; color: #111;">
                     <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1em; margin-bottom: 5px;">
@@ -348,6 +353,9 @@ if query:
                     <div style="text-align: center; font-weight: bold; font-size: 1.08em; margin-top: 15px; color: #222;">
                         인하대병원 의용공학팀 &nbsp;|&nbsp; 정비자: {repairer_name}
                     </div>
+                </div>
+                <div style="text-align: center; font-size: 0.8rem; color: #0275d8; font-weight: 500; margin-top: 8px; animation: sub_blink 1.2s infinite;">
+                    현재 데이터는 전월 말일 기준이므로 확실한 확인은 INHIS에서 조회하세요
                 </div>
                 """,
                 unsafe_allow_html=True
