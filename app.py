@@ -1,4 +1,4 @@
-import glob
+glob
 import os
 import re
 from datetime import datetime
@@ -6,11 +6,19 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
-# 페이지 설정
+# 이미지 속 QR/바코드 해독을 위한 라이브러리 임포트 (설치 필요: pip install opencv-python pyzbar)
+try:
+    import cv2
+    from pyzbar.pyzbar import decode
+    HAS_QR_DECODER = True
+except ImportError:
+    HAS_QR_DECODER = False
+
+# 페이지 설정 (라이트 모드 고정)
 st.set_page_config(page_title="인하대병원 의료장비 조회 시스템", layout="wide")
 
 st.title("🏥 인하대병원 의료장비 조회 시스템")
-st.markdown("관리번호를 직접 입력하거나 바코드/QR 스캐너로 입력하세요.")
+st.markdown("관리번호를 직접 입력하거나, **[📷 카메라/QR 스캔]** 버튼을 눌러 관리번호를 자동으로 입력받으세요.")
 
 # 최신 의료기기 현황조회 파일 자동 탐색 함수
 def find_latest_status_file(prefix="의료기기 현황조회", extensions=(".xlsx", ".xlsb", ".xls")):
@@ -148,40 +156,44 @@ div.stButton > button:first-child {
 st.markdown("---")
 col_menu1, col_menu2 = st.columns(2)
 
-# 1열: 관리번호 개별 장비 검색 (모바일 키보드/바코드 스캐너 연동 최적화)
+# 1열: 관리번호 개별 장비 검색 + 스마트폰 카메라/QR 파일 스캔 연동
 with col_menu1:
     st.markdown("#### 🔍 관리번호 개별 장비 검색")
     
     def on_search_input_change():
         trigger_individual_search(st.session_state["search_input_val"])
 
-    sub_col1, sub_col2 = st.columns([7, 3])
+    sub_col1, sub_col2, sub_col3 = st.columns([4.5, 3, 2.5])
     with sub_col1:
         mgm_no_input = st.text_input(
             "관리번호 입력", 
             key="search_input_val", 
-            placeholder="예: 50A1100001 (바코드 스캔 가능)", 
+            placeholder="예: 50A1100001", 
             label_visibility="collapsed",
             on_change=on_search_input_change
         )
-        
-        # 스마트폰에서 입력창 터치 시 블루투스 바코드 스캐너 또는 모바일 OS 내장 스캔 기능이 활성화되도록 속성 부여
-        components.html("""
-        <script>
-            const doc = window.parent.document;
-            const inputs = doc.querySelectorAll('input[type="text"]');
-            inputs.forEach(input => {
-                if (input.placeholder && input.placeholder.includes("바코드")) {
-                    input.setAttribute('inputmode', 'text');
-                    input.setAttribute('autocomplete', 'off');
-                    input.setAttribute('autocorrect', 'off');
-                    input.setAttribute('autocapitalize', 'characters');
-                }
-            });
-        </script>
-        """, height=0)
-
     with sub_col2:
+        # 스마트폰에서 터치하면 즉시 카메라가 열리거나 사진(QR)을 찍어 올릴 수 있는 네이티브 파일 컴포넌트
+        qr_file = st.file_uploader("📷 카메라/QR 스캔", type=["jpg", "jpeg", "png"], label_visibility="collapsed", key="qr_camera_input")
+        if qr_file is not None and HAS_QR_DECODER:
+            try:
+                file_bytes = np.asarray(bytearray(qr_file.read()), dtype=np.uint8)
+                opencv_image = cv2.imdecode(file_bytes, 1)
+                decoded_objects = decode(opencv_image)
+                if decoded_objects:
+                    scanned_text = decoded_objects[0].data.decode('utf-8').strip().upper()
+                    if scanned_text:
+                        st.session_state["search_input_val"] = scanned_text
+                        trigger_individual_search(scanned_text)
+                        st.rerun()
+                else:
+                    st.warning("QR/바코드를 인식하지 못했습니다. 다시 촬영해 주세요.")
+            except Exception as e:
+                st.error(f"스캔 오류: {e}")
+        elif qr_file is not None and not HAS_QR_DECODER:
+            st.error("서버에 pyzbar/opencv 라이브러리가 설치되지 않았습니다.")
+
+    with sub_col3:
         search_clicked = st.button("조회", use_container_width=True, key="main_search_btn")
 
     if search_clicked:
