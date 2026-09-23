@@ -166,20 +166,20 @@ div.stButton > button:first-child {
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 메인 페이지 상단: 검색 및 조회 영역
+# 메인 페이지 상단: 검색 및 조회 영역 (2열 동시 배치)
 # ==========================================
 st.markdown("---")
-tab_search1, tab_search2 = st.tabs(["🔍 관리번호 개별 장비 검색", "🏢 부서별 장비 리스트 조회"])
+col_menu1, col_menu2 = st.columns(2)
 
-# Tab 1: 관리번호 개별 장비 검색
-with tab_search1:
-    st.markdown("##### 장비의 관리번호를 입력하거나 [조회] 버튼을 누르세요.")
+# 1열: 관리번호 개별 장비 검색
+with col_menu1:
+    st.markdown("#### 🔍 관리번호 개별 장비 검색")
     
     def on_search_input_change():
         trigger_individual_search(st.session_state["search_input_val"])
 
-    col_input, col_btn = st.columns([7, 3])
-    with col_input:
+    sub_col1, sub_col2 = st.columns([7, 3])
+    with sub_col1:
         mgm_no_input = st.text_input(
             "관리번호 입력", 
             key="search_input_val", 
@@ -187,7 +187,7 @@ with tab_search1:
             label_visibility="collapsed",
             on_change=on_search_input_change
         )
-    with col_btn:
+    with sub_col2:
         search_clicked = st.button("조회", use_container_width=True, key="main_search_btn")
 
     if search_clicked:
@@ -196,8 +196,9 @@ with tab_search1:
 
 query = st.session_state["search_query"]
 
-# Tab 2: 부서별 장비 리스트 조회
-with tab_search2:
+# 2열: 부서별 장비 리스트 조회
+with col_menu2:
+    st.markdown("#### 🏢 부서별 장비 리스트 조회")
     dept_col = '사용\n부서' if '사용\n부서' in df_status.columns else '사용부서'
 
     if dept_col in df_status.columns:
@@ -210,12 +211,13 @@ with tab_search2:
             current_dept = '전체보기'
         dept_idx = dept_list.index(current_dept)
         
-        selected_dept = st.selectbox("사용부서 선택", dept_list, index=dept_idx, key="dept_selectbox_active")
+        selected_dept = st.selectbox("사용부서 선택", dept_list, index=dept_idx, key="dept_selectbox_active", label_visibility="collapsed")
         
         if selected_dept != st.session_state["dept_selection"]:
             st.session_state["dept_selection"] = selected_dept
             if selected_dept != '전체보기':
-                st.session_state["search_query"] = ""  # 부서 선택 시 개별 검색어만 초기화
+                st.session_state["search_query"] = ""  # 부서 선택 시 개별 검색어 초기화
+                st.session_state["search_input_val"] = ""
             st.rerun()
     else:
         selected_dept = '전체보기'
@@ -473,4 +475,4 @@ elif selected_dept != '전체보기':
         st.dataframe(dept_filtered_df, use_container_width=True)
 
 else:
-    st.info("💡 상단의 **'관리번호 개별 장비 검색'** 탭에서 번호를 입력하거나, **'부서별 장비 리스트 조회'** 탭에서 부서를 선택해주세요. (모바일 카메라는 좌측 사이드바에서 켤 수 있습니다)")
+    st.info("💡 상단의 **'관리번호 개별 장비 검색'**에서 번호를 입력하거나, 우측의 **'부서별 장비 리스트 조회'**에서 부서를 선택해주세요. (모바일 카메라는 좌측 사이드바에서 켤 수 있습니다)")
