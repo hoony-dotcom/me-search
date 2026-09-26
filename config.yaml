@@ -1,11 +1,13 @@
 credentials:
   usernames:
-    dhkoh:
-      email:inhabme@gmail.com
-      first_name: donghoon
-      last_name: koh
-      password: Dmlrhd1!  # 실행 시 자동으로 해시 처리됩니다.
+    inhabme:
+      email: inhabme@gmail.com
+      first_name: 
+      last_name: 
+      password: Dmlrhd1!
 cookie:
   expiry_days: 30
   key: some_signature_key
   name: some_cookie_name
+preauthorized:
+  emails: []
