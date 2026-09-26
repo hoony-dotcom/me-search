@@ -180,7 +180,7 @@ if username == "dhkoh" and st.session_state.get("show_admin_approval", False):
     st.stop()
 
 # ==========================================
-# 🏥 의료장비 데이터 로드 및 조회 시스템 본문
+# 🏥 의료장비 데이터 로드 및 전체 조회 시스템 본문
 # ==========================================
 try:
     import cv2
@@ -288,24 +288,71 @@ st.sidebar.info(
     f"**[수리접수 내역 (통합 참조)]**\n`{latest_repair_names}`"
 )
 
-# 검색 입력부
-col_search, col_btn = st.columns([4, 1])
-with col_search:
-    user_input = st.text_input("관리번호 검색", value=st.session_state["search_input_val"], placeholder="예: M12345 또는 장비명 입력", label_visibility="collapsed")
-with col_btn:
-    search_clicked = st.button("조회", use_container_width=True)
+# 실제 컬럼명 탐색 및 매핑
+possible_dept_cols = ["운영부서", "부서명", "사용부서", "설치부서", "부서"]
+dept_col = next((col for col in possible_dept_cols if col in df_status.columns), None)
 
-if search_clicked and user_input:
-    trigger_individual_search(user_input)
+possible_mgmt_cols = ["관리번호", "자산번호", "장비번호", "관리 번호"]
+mgmt_col = next((col for col in possible_mgmt_cols if col in df_status.columns), df_status.columns[0])
 
-# 간단한 데이터 그리드 또는 전체 목록 표시 예시
+possible_name_cols = ["장비명", "품명", "기기명", "한글명"]
+name_col = next((col for col in possible_name_cols if col in df_status.columns), df_status.columns[1])
+
+# 사이드바 부서별 필터
+if dept_col:
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 🏢 부서별 장비 조회")
+    departments = ["전체보기"] + sorted(df_status[dept_col].dropna().astype(str).unique().tolist())
+    
+    if "dept_selectbox_active" not in st.session_state:
+        st.session_state["dept_selectbox_active"] = "전체보기"
+        
+    selected_dept = st.sidebar.selectbox(
+        "부서를 선택하세요", 
+        departments, 
+        key="dept_selectbox_active"
+    )
+    
+    if selected_dept != st.session_state["dept_selection"]:
+        st.session_state["dept_selection"] = selected_dept
+        if selected_dept != "전체보기":
+            st.session_state["search_query"] = ""
+            st.session_state["search_input_val"] = ""
+
+# 메인 검색 입력 창
+col1, col2 = st.columns([5, 1])
+with col1:
+    search_input = st.text_input(
+        "관리번호 또는 장비명 검색",
+        value=st.session_state["search_input_val"],
+        placeholder="관리번호(예: M12345) 또는 장비명을 입력하세요",
+        label_visibility="collapsed"
+    )
+with col2:
+    search_button = st.button("🔍 조회", use_container_width=True)
+
+if search_button and search_input:
+    trigger_individual_search(search_input)
+
+# 조건에 따른 데이터 필터링 및 출력
 if st.session_state["search_query"]:
-    st.markdown(f"### 검색 결과: `{st.session_state['search_query']}`")
-    # 예시 필터링 로직 (컬럼명에 맞춰 필요시 조정)
-    matched_df = df_status[df_status.astype(str).apply(lambda x: x.str.contains(st.session_state["search_query"], case=False)).any(axis=1)]
-    if not matched_df.empty:
-        st.dataframe(matched_df, use_container_width=True)
+    q = st.session_state["search_query"]
+    mask = df_status.astype(str).apply(lambda x: x.str.contains(q, case=False)).any(axis=1)
+    result_df = df_status[mask]
+    
+    st.markdown(f"### 🔎 검색 결과 (검색어: `{q}`) - 총 {len(result_df)}건")
+    if not result_df.empty:
+        st.dataframe(result_df, use_container_width=True)
     else:
-        st.warning("검색 결과가 없습니다.")
+        st.warning("일치하는 장비 정보를 찾을 수 없습니다.")
+
+elif st.session_state["dept_selection"] != "전체보기" and dept_col:
+    dept = st.session_state["dept_selection"]
+    result_df = df_status[df_status[dept_col].astype(str) == dept]
+    st.markdown(f"### 🏢 [{dept}] 장비 목록 - 총 {len(result_df)}건")
+    st.dataframe(result_df, use_container_width=True)
+
 else:
-    st.info("관리번호를 검색하거나 부서를 선택하여 장비 현황을 확인하세요.")
+    st.markdown("### 📋 전체 의료장비 현황 요약")
+    st.dataframe(df_status.head(100), use_container_width=True)
+    st.info("💡 전체 목록 중 상위 100개만 표시됩니다. 특정 장비를 찾으려면 위 검색창에 관리번호나 장비명을 입력하거나 사이드바에서 부서를 선택해 주세요.")
