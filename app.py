@@ -77,7 +77,13 @@ if st.session_state.get("authentication_status") != True:
                     if reg_username in all_users or reg_username in all_pending:
                         st.error("이미 존재하는 아이디이거나 이미 신청된 아이디입니다.")
                     else:
-                        hashed_pw = stauth.Hasher([reg_password]).generate()[0]
+                        # 🛠️ TypeError 방지를 위한 안전한 비밀번호 해시 처리
+                        try:
+                            hashed_pw = stauth.Hasher([reg_password]).generate()[0]
+                        except Exception:
+                            import bcrypt
+                            hashed_pw = bcrypt.hashpw(reg_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
                         pending_data['pending_usernames'][reg_username] = {
                             'email': reg_email,
                             'first_name': reg_name,
@@ -122,7 +128,7 @@ authenticator.logout('로그아웃', 'sidebar')
 st.sidebar.markdown(f"환영합니다, **{name}**님! 👋")
 st.sidebar.markdown("---")
 
-# 👑 관리자 계정 변경 반영: dhkoh 아이디로 로그인 시 가입 승인 메뉴 활성화
+# 👑 관리자 계정 ('dhkoh') 전용: 가입 승인 관리 메뉴
 if username == "dhkoh":
     st.sidebar.markdown("### 👑 관리자 메뉴")
     if st.sidebar.button("📋 가입 승인 관리", use_container_width=True):
@@ -272,5 +278,3 @@ st.sidebar.info(
     f"**[의료기기 현황]**\n`{latest_status_path}`\n\n"
     f"**[수리접수 내역 (통합 참조)]**\n`{latest_repair_names}`"
 )
-
-# (이하 기존 검색 및 상세 조회 로직 동일 작동)
