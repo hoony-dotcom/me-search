@@ -45,6 +45,9 @@ authenticator = stauth.Authenticate(
 if "page_mode" not in st.session_state:
     st.session_state["page_mode"] = "login"
 
+if "register_success" not in st.session_state:
+    st.session_state["register_success"] = False
+
 # ==========================================
 # 🔒 로그인 및 가입 화면 라우팅
 # ==========================================
@@ -55,50 +58,54 @@ if st.session_state.get("authentication_status") != True:
         st.title("📝 사용자 가입 신청")
         st.markdown("의료장비 조회 시스템 사용을 위한 계정 발급을 신청합니다. 관리자 승인 후 로그인할 수 있습니다.")
         
-        with st.form("register_form"):
-            reg_username = st.text_input("아이디 (ID)").strip()
-            reg_name = st.text_input("이름").strip()
-            reg_email = st.text_input("이메일 주소").strip()
-            reg_password = st.text_input("비밀번호", type="password")
-            reg_password_check = st.text_input("비밀번호 확인", type="password")
-            
-            submitted = st.form_submit_button("가입 신청 제출", use_container_width=True)
-            
-            if submitted:
-                if not reg_username or not reg_name or not reg_password:
-                    st.error("모든 필수 항목을 입력해 주세요.")
-                elif reg_password != reg_password_check:
-                    st.error("비밀번호가 일치하지 않습니다.")
-                else:
-                    all_users = list(config['credentials']['usernames'].keys())
-                    pending_data = load_yaml(PENDING_FILE) or {'pending_usernames': {}}
-                    all_pending = list(pending_data['pending_usernames'].keys())
-                    
-                    if reg_username in all_users or reg_username in all_pending:
-                        st.error("이미 존재하는 아이디이거나 이미 신청된 아이디입니다.")
+        if st.session_state["register_success"]:
+            st.success("🎉 가입 신청이 완료되었습니다! 관리자 승인 후 로그인이 가능합니다.")
+            if st.button("로그인 화면으로 돌아가기", use_container_width=True):
+                st.session_state["register_success"] = False
+                st.session_state["page_mode"] = "login"
+                st.rerun()
+        else:
+            with st.form("register_form"):
+                reg_username = st.text_input("아이디 (ID)").strip()
+                reg_name = st.text_input("이름").strip()
+                reg_email = st.text_input("이메일 주소").strip()
+                reg_password = st.text_input("비밀번호", type="password")
+                reg_password_check = st.text_input("비밀번호 확인", type="password")
+                
+                submitted = st.form_submit_button("가입 신청 제출", use_container_width=True)
+                
+                if submitted:
+                    if not reg_username or not reg_name or not reg_password:
+                        st.error("모든 필수 항목을 입력해 주세요.")
+                    elif reg_password != reg_password_check:
+                        st.error("비밀번호가 일치하지 않습니다.")
                     else:
-                        # 🛠️ TypeError 방지를 위한 안전한 비밀번호 해시 처리
-                        try:
-                            hashed_pw = stauth.Hasher([reg_password]).generate()[0]
-                        except Exception:
-                            import bcrypt
-                            hashed_pw = bcrypt.hashpw(reg_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                        all_users = list(config['credentials']['usernames'].keys())
+                        pending_data = load_yaml(PENDING_FILE) or {'pending_usernames': {}}
+                        all_pending = list(pending_data['pending_usernames'].keys())
+                        
+                        if reg_username in all_users or reg_username in all_pending:
+                            st.error("이미 존재하는 아이디이거나 이미 신청된 아이디입니다.")
+                        else:
+                            try:
+                                hashed_pw = stauth.Hasher([reg_password]).generate()[0]
+                            except Exception:
+                                import bcrypt
+                                hashed_pw = bcrypt.hashpw(reg_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
-                        pending_data['pending_usernames'][reg_username] = {
-                            'email': reg_email,
-                            'first_name': reg_name,
-                            'last_name': '',
-                            'password': hashed_pw
-                        }
-                        save_yaml(pending_data, PENDING_FILE)
-                        st.success("🎉 가입 신청이 완료되었습니다! 관리자 승인 후 로그인이 가능합니다.")
-                        if st.button("로그인 화면으로 돌아가기"):
-                            st.session_state["page_mode"] = "login"
+                            pending_data['pending_usernames'][reg_username] = {
+                                'email': reg_email,
+                                'first_name': reg_name,
+                                'last_name': '',
+                                'password': hashed_pw
+                            }
+                            save_yaml(pending_data, PENDING_FILE)
+                            st.session_state["register_success"] = True
                             st.rerun()
                             
-        if st.button("⬅️ 로그인 화면으로", use_container_width=True):
-            st.session_state["page_mode"] = "login"
-            st.rerun()
+            if st.button("⬅️ 로그인 화면으로", use_container_width=True):
+                st.session_state["page_mode"] = "login"
+                st.rerun()
         st.stop()
 
     # 2. 일반 로그인 화면인 경우
@@ -114,6 +121,7 @@ if st.session_state.get("authentication_status") != True:
         
     st.markdown("---")
     if st.button("✨ 계정이 없으신가요? [가입 신청하기]", use_container_width=True):
+        st.session_state["register_success"] = False
         st.session_state["page_mode"] = "register"
         st.rerun()
     st.stop()
