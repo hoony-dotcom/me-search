@@ -1,13 +1,13 @@
 credentials:
   usernames:
-    inhabme:
-      email: inhabme@gmail.com
-      first_name: 의용공학팀
-      last_name: 인하대병원
-      password: inhabme
+    dhkoh:
+      email: dhkoh@inhauh.com
+      first_name: 고동훈
+      last_name: ''
+      password: $2b$12$R.S9S2fH/l6d1T2mYg0mB.OqK8h1Q3uFzH7xL8x8x8x8x8x8x8x8x # 안전하게 해시된 암호 예시 (또는 평문 입력 시 첫 로그인 시 검증)
 cookie:
   expiry_days: 30
-  key: some_signature_key
-  name: some_cookie_name
+  key: inha_med_engineering_key
+  name: inha_med_session
 preauthorized:
   emails: []
