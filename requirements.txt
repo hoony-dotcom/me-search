@@ -2,6 +2,8 @@ streamlit
 pandas
 openpyxl
 pyxlsb
-opencv-python
+PyYAML
+streamlit-authenticator
+opencv-python-headless
 pyzbar
-altair
+numpy
