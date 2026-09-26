@@ -21,38 +21,45 @@ st.set_page_config(page_title="인하대병원 의료장비 조회 시스템", l
 st.title("🏥 인하대병원 의료장비 조회 시스템")
 st.markdown("관리번호를 직접 입력하거나, **[📷 카메라/QR 스캔]** 버튼을 눌러 관리번호를 자동으로 입력받으세요.")
 
-# 최신 의료기기 현황조회 파일 자동 탐색 함수
+# 최신 의료기기 현황조회 파일 자동 탐색 함수 (rawfile 폴더 기준)
 def find_latest_status_file(prefix="의료기기 현황조회", extensions=(".xlsx", ".xlsb", ".xls")):
     files = []
     for ext in extensions:
+        files.extend(glob.glob(os.path.join("rawfile", f"{prefix}*{ext}")))
+        # 하위 호환을 위해 폴더가 없을 경우 현재 경로도 예외적으로 체크
         files.extend(glob.glob(f"{prefix}*{ext}"))
         
     if not files:
         return None
     
     def extract_date(filename):
-        remainder = filename[len(prefix):]
+        base_name = os.path.basename(filename)
+        remainder = base_name[len(prefix):]
         matches = re.findall(r'(\d+)', remainder)
         if matches:
             return matches[-1]
         return ""
     
+    files = list(set(files)) # 중복 제거
     files.sort(key=extract_date, reverse=True)
     return files[0]
 
-# 1. 데이터 파일 로드
+# 1. 데이터 파일 로드 (rawfile 폴더 참조)
 @st.cache_data
 def load_latest_data():
     status_file = find_latest_status_file("의료기기 현황조회")
     
     repair_files = []
     for ext in (".xlsx", ".xlsb", ".xls"):
-        repair_files.extend(glob.glob(f"수리접수 내역*{ext}"))
+        repair_files.extend(glob.glob(os.path.join("rawfile", f"수리접수 내역*{ext}")))
+        repair_files.extend(glob.glob(f"수리접수 내역*{ext}")) # 백업 경로
+        
+    repair_files = list(set(repair_files)) # 중복 제거
         
     if not status_file:
-        raise FileNotFoundError("필요한 '의료기기 현황조회' 파일을 찾을 수 없습니다.")
+        raise FileNotFoundError("필요한 '의료기기 현황조회' 파일을 'rawfile' 폴더 안에서 찾을 수 없습니다.")
     if not repair_files:
-        raise FileNotFoundError("필요한 '수리접수 내역' 파일을 찾을 수 없습니다.")
+        raise FileNotFoundError("필요한 '수리접수 내역' 파일을 'rawfile' 폴더 안에서 찾을 수 없습니다.")
         
     df_status = pd.read_excel(status_file)
     
@@ -198,7 +205,6 @@ with col_menu1:
                 let reader = new FileReader();
                 reader.onload = function(e) {
                     let base64Data = e.target.result;
-                    // Streamlit 세션 또는 상위 창으로 데이터 전달하기 위한 커스텀 이벤트 전송
                     const data = { type: 'camera_image', value: base64Data };
                     window.parent.postMessage(data, "*");
                 }
@@ -212,7 +218,6 @@ with col_menu1:
         # 백업용 표준 파일 업로더 (PC 또는 모바일 갤러리 선택용)
         qr_file = st.file_uploader("📁 파일/갤러리 선택", type=["jpg", "jpeg", "png"], label_visibility="collapsed", key="qr_camera_input")
         
-        # 업로드되거나 카메라로 찍힌 이미지가 있으면 디코딩 처리
         if qr_file is not None and HAS_QR_DECODER:
             try:
                 file_bytes = np.asarray(bytearray(qr_file.read()), dtype=np.uint8)
