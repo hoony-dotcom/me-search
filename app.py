@@ -122,8 +122,8 @@ authenticator.logout('로그아웃', 'sidebar')
 st.sidebar.markdown(f"환영합니다, **{name}**님! 👋")
 st.sidebar.markdown("---")
 
-# 👑 관리자 계정 전용: 가입 승인 관리 메뉴 (admin 계정 기준)
-if username == "admin":
+# 👑 관리자 계정 전용: 가입 승인 관리 메뉴 (dhkoh 계정 기준)
+if username == "dhkoh":
     st.sidebar.markdown("### 👑 관리자 메뉴")
     if st.sidebar.button("📋 가입 승인 관리", use_container_width=True):
         st.session_state["show_admin_approval"] = True
@@ -131,7 +131,7 @@ if username == "admin":
         if "show_admin_approval" not in st.session_state:
             st.session_state["show_admin_approval"] = False
 
-if username == "admin" and st.session_state.get("show_admin_approval", False):
+if username == "dhkoh" and st.session_state.get("show_admin_approval", False):
     st.title("📋 사용자 가입 신청 승인 관리")
     
     pending_data = load_yaml(PENDING_FILE)
