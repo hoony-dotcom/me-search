@@ -2,9 +2,9 @@ credentials:
   usernames:
     inhabme:
       email: inhabme@gmail.com
-      first_name: 
-      last_name: 
-      password: Dmlrhd1!
+      first_name: 의용공학팀
+      last_name: 인하대병원
+      password: inhabme
 cookie:
   expiry_days: 30
   key: some_signature_key
