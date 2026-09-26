@@ -8,6 +8,7 @@ import streamlit.components.v1 as components
 import yaml
 from yaml.loader import SafeLoader
 import streamlit_authenticator as stauth
+import bcrypt
 
 # 페이지 설정 (라이트 모드 고정)
 st.set_page_config(page_title="인하대병원 의료장비 조회 시스템", layout="wide")
@@ -77,7 +78,9 @@ if st.session_state.get("authentication_status") != True:
                     if reg_username in all_users or reg_username in all_pending:
                         st.error("이미 존재하는 아이디이거나 이미 신청된 아이디입니다.")
                     else:
-                        hashed_pw = stauth.Hasher([reg_password]).generate()[0]
+                        # bcrypt를 이용한 안전한 비밀번호 해시 생성
+                        hashed_pw = bcrypt.hashpw(reg_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                        
                         pending_data['pending_usernames'][reg_username] = {
                             'email': reg_email,
                             'first_name': reg_name,
