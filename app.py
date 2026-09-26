@@ -180,7 +180,7 @@ if username == "dhkoh" and st.session_state.get("show_admin_approval", False):
     st.stop()
 
 # ==========================================
-# 이후 기존 의료장비 조회 시스템 정상 실행 코드
+# 🏥 의료장비 데이터 로드 및 조회 시스템 본문
 # ==========================================
 try:
     import cv2
@@ -246,6 +246,7 @@ except Exception as e:
     st.error(f"데이터 파일을 불러오는 중 오류가 발생했습니다: {e}")
     st.stop()
 
+# 세션 상태 초기화
 if "search_input_val" not in st.session_state:
     st.session_state["search_input_val"] = ""
 if "search_query" not in st.session_state:
@@ -286,3 +287,25 @@ st.sidebar.info(
     f"**[의료기기 현황]**\n`{latest_status_path}`\n\n"
     f"**[수리접수 내역 (통합 참조)]**\n`{latest_repair_names}`"
 )
+
+# 검색 입력부
+col_search, col_btn = st.columns([4, 1])
+with col_search:
+    user_input = st.text_input("관리번호 검색", value=st.session_state["search_input_val"], placeholder="예: M12345 또는 장비명 입력", label_visibility="collapsed")
+with col_btn:
+    search_clicked = st.button("조회", use_container_width=True)
+
+if search_clicked and user_input:
+    trigger_individual_search(user_input)
+
+# 간단한 데이터 그리드 또는 전체 목록 표시 예시
+if st.session_state["search_query"]:
+    st.markdown(f"### 검색 결과: `{st.session_state['search_query']}`")
+    # 예시 필터링 로직 (컬럼명에 맞춰 필요시 조정)
+    matched_df = df_status[df_status.astype(str).apply(lambda x: x.str.contains(st.session_state["search_query"], case=False)).any(axis=1)]
+    if not matched_df.empty:
+        st.dataframe(matched_df, use_container_width=True)
+    else:
+        st.warning("검색 결과가 없습니다.")
+else:
+    st.info("관리번호를 검색하거나 부서를 선택하여 장비 현황을 확인하세요.")
