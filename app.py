@@ -5,6 +5,52 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
+import yaml
+from yaml.loader import SafeLoader
+import streamlit_authenticator as stauth
+
+# 페이지 설정 (라이트 모드 고정) - 반드시 맨 처음에 위치해야 합니다.
+st.set_page_config(page_title="인하대병원 의료장비 조회 시스템", layout="wide")
+
+# ==========================================
+# 🔒 streamlit-authenticator 보안 인증 로직
+# ==========================================
+try:
+    with open('config.yaml') as file:
+        config = yaml.load(file, Loader=SafeLoader)
+except FileNotFoundError:
+    st.error("설정 파일(`config.yaml`)을 찾을 수 없습니다. 프로젝트 폴더에 파일을 생성해 주세요.")
+    st.stop()
+
+authenticator = stauth.Authenticate(
+    config['credentials'],
+    config['cookie']['name'],
+    config['cookie']['key'],
+    config['cookie']['expiry_days']
+)
+
+# 로그인 화면 렌더링
+try:
+    authenticator.login()
+except Exception as e:
+    st.error(e)
+
+# 로그인 상태 확인
+if st.session_state["authentication_status"] == False:
+    st.error("사용자 이름 또는 비밀번호가 올바르지 않습니다.")
+    st.stop()
+elif st.session_state["authentication_status"] == None:
+    st.warning("시스템에 접근하려면 로그인을 진행해 주세요.")
+    st.stop()
+
+# ==========================================
+# 이후부터 기존의 정상적인 앱 코드 실행 (로그인 성공 시)
+# ==========================================
+
+# 우측 상단 또는 사이드바에 로그아웃 버튼 배치
+authenticator.logout('로그아웃', 'sidebar')
+st.sidebar.markdown(f"환영합니다, **{st.session_state['name']}**님! 👋")
+st.sidebar.markdown("---")
 
 # 이미지 속 QR/바코드 해독을 위한 라이브러리 임포트
 try:
@@ -14,9 +60,6 @@ try:
     HAS_QR_DECODER = True
 except ImportError:
     HAS_QR_DECODER = False
-
-# 페이지 설정 (라이트 모드 고정)
-st.set_page_config(page_title="인하대병원 의료장비 조회 시스템", layout="wide")
 
 st.title("🏥 인하대병원 의료장비 조회 시스템")
 st.markdown("관리번호를 직접 입력하거나, **[📷 카메라/QR 스캔]** 버튼을 눌러 관리번호를 자동으로 입력받으세요.")
@@ -174,7 +217,6 @@ with col_menu1:
             on_change=on_search_input_change
         )
     with sub_col2:
-        # 모바일 메모장 오픈 현상을 방지하고 즉시 후면 카메라를 호출하는 네이티브 HTML 파일 업로드 컴포넌트 주입
         cam_html = """
         <div style="width: 100%;">
             <label for="camera_input" style="
@@ -198,7 +240,6 @@ with col_menu1:
                 let reader = new FileReader();
                 reader.onload = function(e) {
                     let base64Data = e.target.result;
-                    // Streamlit 세션 또는 상위 창으로 데이터 전달하기 위한 커스텀 이벤트 전송
                     const data = { type: 'camera_image', value: base64Data };
                     window.parent.postMessage(data, "*");
                 }
@@ -209,10 +250,8 @@ with col_menu1:
         """
         components.html(cam_html, height=45)
 
-        # 백업용 표준 파일 업로더 (PC 또는 모바일 갤러리 선택용)
         qr_file = st.file_uploader("📁 파일/갤러리 선택", type=["jpg", "jpeg", "png"], label_visibility="collapsed", key="qr_camera_input")
         
-        # 업로드되거나 카메라로 찍힌 이미지가 있으면 디코딩 처리
         if qr_file is not None and HAS_QR_DECODER:
             try:
                 file_bytes = np.asarray(bytearray(qr_file.read()), dtype=np.uint8)
