@@ -62,7 +62,7 @@ except Exception as e:
     st.stop()
 
 # ==========================================
-# 🧭 사이드바: 의공학팀 주요 개발 앱 링크 추가
+# 🧭 사이드바: 의공학팀 주요 개발 앱 링크 유지
 # ==========================================
 with st.sidebar:
     st.markdown("### 🔗 의공학팀 주요 개발 앱")
@@ -269,3 +269,14 @@ else:
             """,
             unsafe_allow_html=True
         )
+
+# ==========================================
+# 📌 메인 화면 하단: 개발 앱 바로가기 아코디언 추가
+# ==========================================
+st.markdown("<br><br>", unsafe_allow_html=True)
+with st.expander("📌 의공학팀 주요 개발 앱 바로가기 (목록 열기)"):
+    st.markdown("1. [의료장비 투자집행 계획 실적](https://buly.kr/DEbvdwF)")
+    st.markdown("2. [인하대병원 의료장비 보유 현황](https://buly.kr/7mERs3u)")
+    st.markdown("3. [건강보험심사평가원 의료장비 상세현황 조회](https://buly.kr/uWvRbg)")
+    st.markdown("4. [인하대병원 의료장비 조회 시스템](https://buly.kr/6BzfJgY)")
+    st.markdown("5. [의료기기 백업 현황 대시보드](https://buly.kr/2Jr1qXA)")
