@@ -1,23 +1,17 @@
-name: Streamlit Keep Alive
+name: Keep Streamlit Alive
 
 on:
+  # 스케줄 설정 (UTC 기준 매일 오전 6시에 실행, 필요에 따라 변경 가능)
   schedule:
-    # 매일 12시간마다 실행 (UTC 기준, 필요 시 cron 주기 변경 가능)
-    - cron: '0 0,12 * * *' 
-  workflow_dispatch: # GitHub 웹에서 수동으로도 실행할 수 있게 허용
+    - cron: '0 6 * * *'
+  
+  # GitHub 웹페이지에서 수동으로 즉시 실행할 수 있도록 허용
+  workflow_dispatch:
 
 jobs:
-  auto_commit:
+  ping-app:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Create empty commit
+      - name: Send HTTP request to keep app awake
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git commit --allow-empty -m "Keep alive: Prevent Streamlit sleep mode"
-          git push
+          curl -s -o /dev/null -w "%{http_code}\n" https://me-search-ckfrctqz9kkdm6nuuzvk8c.streamlit.app/
